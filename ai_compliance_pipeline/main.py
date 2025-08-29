@@ -1,9 +1,9 @@
 from __future__ import annotations
 import argparse
+from pipeline.reports import write_dataset_card, write_model_card, write_run_report
 from pathlib import Path
 from typing import Dict, Any
 from rich import print
-
 from pipeline.ingestion import load_csv, dataframe_schema
 from pipeline.compliance import new_run_id, utc_now_iso, sha256_of_file, append_jsonl, write_json
 from pipeline.transform import basic_clean, prepare_features, train_test_split_simple
@@ -78,6 +78,10 @@ def main():
     record = {**base, "transform": transform_meta, "model": model_meta}
     append_jsonl(paths["log"], record)
     write_json(run_dir / "metadata.json", record)
+    write_dataset_card(run_dir, record)
+    write_model_card(run_dir, record)
+    write_run_report(run_dir, record)
+
 
     print("[bold cyan]Done![/bold cyan]")
     print(f"• Run ID: [bold]{run_id}[/bold]")
