@@ -5,9 +5,9 @@ from typing import Dict, Any
 from rich import print
 
 from pipeline.ingestion import load_csv, dataframe_schema
-from pipeline.compliance import (
-    new_run_id, utc_now_iso, sha256_of_file, append_jsonl, write_json
-)
+from pipeline.compliance import new_run_id, utc_now_iso, sha256_of_file, append_jsonl, write_json
+from pipeline.transform import basic_clean, prepare_features, train_test_split_simple
+from pipeline.model import train_logreg, evaluate, save_model
 
 def ensure_dirs() -> Dict[str, Path]:
     root = Path(__file__).parent.resolve()
@@ -34,9 +34,8 @@ def gather_metadata(dataset_path: Path, df) -> Dict[str, Any]:
     }
 
 def main():
-    ap = argparse.ArgumentParser(description="Step 1: Ingestion + compliance logging")
-    ap.add_argument("--data", type=str, default="data/bank.csv",
-                    help="Path to CSV dataset")
+    ap = argparse.ArgumentParser(description="Day 1: end-to-end MVP (transform + model + logs)")
+    ap.add_argument("--data", type=str, default="data/bank.csv", help="Path to CSV dataset")
     args = ap.parse_args()
 
     paths = ensure_dirs()
@@ -45,26 +44,47 @@ def main():
         print(f"[red]Dataset not found:[/red] {dataset_path}")
         raise SystemExit(1)
 
-    print("[bold cyan]Step 1: Loading dataset...[/bold cyan]")
+    print("[bold cyan]Step 1: Load dataset[/bold cyan]")
     df = load_csv(dataset_path)
-    print(f"[green]Loaded[/green] {len(df)} rows and {len(df.columns)} columns.")
+    print(f"[green]Loaded[/green] {len(df)} rows, {len(df.columns)} columns.")
 
-    print("[bold cyan]Step 2: Creating run ID and metadata...[/bold cyan]")
+    print("[bold cyan]Step 2: Create run + base metadata[/bold cyan]")
     run_id = new_run_id()
-    meta = {
-        "run_id": run_id,
-        "timestamp_utc": utc_now_iso(),
-        "metadata": gather_metadata(dataset_path, df),
+    run_dir = paths["runs"] / run_id
+    base = {"run_id": run_id, "timestamp_utc": utc_now_iso(), "dataset": gather_metadata(dataset_path, df)}
+
+    print("[bold cyan]Step 3: Transform[/bold cyan]")
+    df_clean = basic_clean(df)
+    X, y = prepare_features(df_clean)
+    X_train, X_test, y_train, y_test = train_test_split_simple(X, y)
+    transform_meta = {
+        "rows_after_clean": int(len(df_clean)),
+        "feature_count": int(X.shape[1]),
+        "train_size": int(len(y_train)),
+        "test_size": int(len(y_test)),
     }
 
-    append_jsonl(paths["log"], meta)
-    run_dir = paths["runs"] / run_id
-    write_json(run_dir / "metadata.json", meta)
+    print("[bold cyan]Step 4: Train + evaluate[/bold cyan]")
+    model = train_logreg(X_train, y_train, max_iter=1000)
+    metrics = evaluate(model, X_test, y_test)
+    model_path = save_model(model, run_dir / "model.joblib")
+    model_meta = {
+        "algorithm": "LogisticRegression",
+        "hyperparameters": {"max_iter": 1000},
+        "artifact_path": model_path,
+        "metrics": metrics,
+    }
+
+    record = {**base, "transform": transform_meta, "model": model_meta}
+    append_jsonl(paths["log"], record)
+    write_json(run_dir / "metadata.json", record)
 
     print("[bold cyan]Done![/bold cyan]")
     print(f"• Run ID: [bold]{run_id}[/bold]")
+    print(f"• Accuracy: {metrics['value']:.3f}")
     print(f"• Global log: {paths['log']}")
     print(f"• Per-run metadata: {run_dir/'metadata.json'}")
+    print(f"• Model: {model_path}")
 
 if __name__ == "__main__":
     main()
