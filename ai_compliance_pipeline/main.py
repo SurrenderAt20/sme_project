@@ -4,6 +4,7 @@ from pipeline.reports import write_dataset_card, write_model_card, write_run_rep
 from pathlib import Path
 from typing import Dict, Any
 from rich import print
+from pipeline.checks import run_checks, write_findings
 from pipeline.ingestion import load_csv, dataframe_schema
 from pipeline.compliance import new_run_id, utc_now_iso, sha256_of_file, append_jsonl, write_json
 from pipeline.transform import basic_clean, prepare_features, train_test_split_simple
@@ -89,6 +90,21 @@ def main():
     print(f"• Global log: {paths['log']}")
     print(f"• Per-run metadata: {run_dir/'metadata.json'}")
     print(f"• Model: {model_path}")
+    print("[bold cyan]Step 5: Compliance checks[/bold cyan]")
+    findings = run_checks(record, run_dir)
+    status = write_findings(run_dir, findings)
+
+    # Attach compliance status into metadata
+    record["compliance"] = {
+        "status": status,
+        "blockers": [f.id for f in findings if f.severity == "BLOCKER" and not f.passed],
+        "warnings": [f.id for f in findings if f.severity == "WARN" and not f.passed],
+    }
+    write_json(run_dir / "metadata.json", record)  # overwrite with compliance info
+
+    print(f"• Compliance verdict: [bold]{status}[/bold]")
+    print(f"• Findings: {run_dir/'compliance_findings.json'}")
+
 
 if __name__ == "__main__":
     main()
