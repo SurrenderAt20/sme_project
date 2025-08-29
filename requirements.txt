@@ -1,0 +1,10 @@
+# Core
+pandas>=2.2
+scikit-learn>=1.5
+pydantic>=2.7
+pyyaml>=6.0
+rich>=13.7
+
+# Optional but recommended
+joblib>=1.4
+pytest>=8.2
