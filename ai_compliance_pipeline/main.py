@@ -9,6 +9,7 @@ from pipeline.ingestion import load_csv, dataframe_schema
 from pipeline.compliance import new_run_id, utc_now_iso, sha256_of_file, append_jsonl, write_json
 from pipeline.transform import basic_clean, prepare_features, train_test_split_simple
 from pipeline.model import train_logreg, evaluate, save_model
+from pipeline.compliance import upload_to_blob
 
 def ensure_dirs() -> Dict[str, Path]:
     root = Path(__file__).parent.resolve()
@@ -35,7 +36,7 @@ def gather_metadata(dataset_path: Path, df) -> Dict[str, Any]:
     }
 
 def main():
-    ap = argparse.ArgumentParser(description="Day 1: end-to-end MVP (transform + model + logs)")
+    ap = argparse.ArgumentParser(description="Transform + Model + Logs)")
     ap.add_argument("--data", type=str, default="data/bank.csv", help="Path to CSV dataset")
     args = ap.parse_args()
 
@@ -69,6 +70,8 @@ def main():
     model = train_logreg(X_train, y_train, max_iter=1000)
     metrics = evaluate(model, X_test, y_test)
     model_path = save_model(model, run_dir / "model.joblib")
+    with open(model_path, "rb") as f:
+        upload_to_blob(run_id, "model.joblib", f.read())
     model_meta = {
         "algorithm": "LogisticRegression",
         "hyperparameters": {"max_iter": 1000},
@@ -79,9 +82,14 @@ def main():
     record = {**base, "transform": transform_meta, "model": model_meta}
     append_jsonl(paths["log"], record)
     write_json(run_dir / "metadata.json", record)
-    write_dataset_card(run_dir, record)
-    write_model_card(run_dir, record)
-    write_run_report(run_dir, record)
+    upload_to_blob(run_id, "metadata.json", record)
+    dataset_card = write_dataset_card(run_dir, record)
+    model_card = write_model_card(run_dir, record)
+    run_report = write_run_report(run_dir, record)
+
+    for card in [dataset_card, model_card, run_report]:
+        upload_to_blob(run_id, Path(card).name, Path(card).read_text())
+
 
 
     print("[bold cyan]Done![/bold cyan]")
@@ -93,6 +101,9 @@ def main():
     print("[bold cyan]Step 5: Compliance checks[/bold cyan]")
     findings = run_checks(record, run_dir)
     status = write_findings(run_dir, findings)
+    upload_to_blob(run_id, "compliance_findings.json", (run_dir/"compliance_findings.json").read_text())
+    upload_to_blob(run_id, "compliance_summary.txt", (run_dir/"compliance_summary.txt").read_text())
+
 
     # Attach compliance status into metadata
     record["compliance"] = {

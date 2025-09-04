@@ -8,10 +8,13 @@ rich>=13.7
 pydantic>=2.7
 pyyaml>=6.0
 
-# Web viewer (Day 3)
+# Web viewer
 fastapi>=0.111
 uvicorn>=0.30
 jinja2>=3.1
+
+# Azure storage
+azure-storage-blob
 
 # Testing
 pytest>=8.2
