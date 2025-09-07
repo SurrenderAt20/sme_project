@@ -36,7 +36,7 @@ def gather_metadata(dataset_path: Path, df) -> Dict[str, Any]:
     }
 
 def main():
-    ap = argparse.ArgumentParser(description="Transform + Model + Logs)")
+    ap = argparse.ArgumentParser(description="Transform + Model + Logs")
     ap.add_argument("--data", type=str, default="data/bank.csv", help="Path to CSV dataset")
     args = ap.parse_args()
 
@@ -80,30 +80,12 @@ def main():
     }
 
     record = {**base, "transform": transform_meta, "model": model_meta}
-    append_jsonl(paths["log"], record)
-    write_json(run_dir / "metadata.json", record)
-    upload_to_blob(run_id, "metadata.json", record)
-    dataset_card = write_dataset_card(run_dir, record)
-    model_card = write_model_card(run_dir, record)
-    run_report = write_run_report(run_dir, record)
 
-    for card in [dataset_card, model_card, run_report]:
-        upload_to_blob(run_id, Path(card).name, Path(card).read_text())
-
-
-
-    print("[bold cyan]Done![/bold cyan]")
-    print(f"• Run ID: [bold]{run_id}[/bold]")
-    print(f"• Accuracy: {metrics['value']:.3f}")
-    print(f"• Global log: {paths['log']}")
-    print(f"• Per-run metadata: {run_dir/'metadata.json'}")
-    print(f"• Model: {model_path}")
     print("[bold cyan]Step 5: Compliance checks[/bold cyan]")
     findings = run_checks(record, run_dir)
     status = write_findings(run_dir, findings)
-    upload_to_blob(run_id, "compliance_findings.json", (run_dir/"compliance_findings.json").read_text())
-    upload_to_blob(run_id, "compliance_summary.txt", (run_dir/"compliance_summary.txt").read_text())
-
+    upload_to_blob(run_id, "compliance_findings.json", (run_dir / "compliance_findings.json").read_text())
+    upload_to_blob(run_id, "compliance_summary.txt", (run_dir / "compliance_summary.txt").read_text())
 
     # Attach compliance status into metadata
     record["compliance"] = {
@@ -111,11 +93,26 @@ def main():
         "blockers": [f.id for f in findings if f.severity == "BLOCKER" and not f.passed],
         "warnings": [f.id for f in findings if f.severity == "WARN" and not f.passed],
     }
-    write_json(run_dir / "metadata.json", record)  # overwrite with compliance info
 
+    append_jsonl(paths["log"], record)
+    write_json(run_dir / "metadata.json", record)
+    upload_to_blob(run_id, "metadata.json", record)
+
+    # Generate & upload reports
+    dataset_card = write_dataset_card(run_dir, record)
+    model_card = write_model_card(run_dir, record)
+    run_report = write_run_report(run_dir, record)
+    for card in [dataset_card, model_card, run_report]:
+        upload_to_blob(run_id, Path(card).name, Path(card).read_text())
+
+    print("[bold cyan]Done![/bold cyan]")
+    print(f"• Run ID: [bold]{run_id}[/bold]")
+    print(f"• Accuracy: {metrics['value']:.3f}")
+    print(f"• Global log: {paths['log']}")
+    print(f"• Per-run metadata: {run_dir/'metadata.json'}")
+    print(f"• Model: {model_path}")
     print(f"• Compliance verdict: [bold]{status}[/bold]")
     print(f"• Findings: {run_dir/'compliance_findings.json'}")
-
 
 if __name__ == "__main__":
     main()
