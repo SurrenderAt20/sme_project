@@ -4,69 +4,82 @@ from typing import Dict, Any, List
 from pathlib import Path
 import json
 
+
 @dataclass
 class Finding:
     id: str
     title: str
-    severity: str   # "BLOCKER", "WARN", "INFO"
+    severity: str  # "BLOCKER", "WARN", "INFO"
     passed: bool
     details: str
+
 
 def run_checks(meta: Dict[str, Any], run_dir: Path) -> List[Finding]:
     """Run basic compliance checks against metadata."""
     findings: List[Finding] = []
 
     # 1. Run ID
-    findings.append(Finding(
-        id="CHECK-001",
-        title="Run ID present",
-        severity="BLOCKER",
-        passed=bool(meta.get("run_id")),
-        details="Each run must have a unique identifier."
-    ))
+    findings.append(
+        Finding(
+            id="CHECK-001",
+            title="Run ID present",
+            severity="BLOCKER",
+            passed=bool(meta.get("run_id")),
+            details="Each run must have a unique identifier.",
+        )
+    )
 
     # 2. Dataset hash
     dataset = meta.get("dataset", {})
-    findings.append(Finding(
-        id="CHECK-002",
-        title="Dataset fingerprint exists",
-        severity="BLOCKER",
-        passed=bool(dataset.get("dataset_sha256")),
-        details="Dataset SHA-256 must be logged for reproducibility."
-    ))
+    findings.append(
+        Finding(
+            id="CHECK-002",
+            title="Dataset fingerprint exists",
+            severity="BLOCKER",
+            passed=bool(dataset.get("dataset_sha256")),
+            details="Dataset SHA-256 must be logged for reproducibility.",
+        )
+    )
 
     # 3. Model metrics
     model = meta.get("model", {})
     metric_val = (model.get("metrics") or {}).get("value")
-    findings.append(Finding(
-        id="CHECK-003",
-        title="Model metrics recorded",
-        severity="BLOCKER",
-        passed=metric_val is not None,
-        details="At least one evaluation metric must be saved."
-    ))
+    findings.append(
+        Finding(
+            id="CHECK-003",
+            title="Model metrics recorded",
+            severity="BLOCKER",
+            passed=metric_val is not None,
+            details="At least one evaluation metric must be saved.",
+        )
+    )
 
     # 4. Model artifact
     artifact_path = model.get("artifact_path")
-    findings.append(Finding(
-        id="CHECK-004",
-        title="Model artifact saved",
-        severity="WARN",
-        passed=artifact_path and Path(artifact_path).exists(),
-        details="Trained model should be persisted for auditability."
-    ))
+    findings.append(
+        Finding(
+            id="CHECK-004",
+            title="Model artifact saved",
+            severity="WARN",
+            passed=artifact_path and Path(artifact_path).exists(),
+            details="Trained model should be persisted for auditability.",
+        )
+    )
 
     # 5. Global log exists
     global_log = run_dir.parent.parent / "run_log.jsonl"
-    findings.append(Finding(
-        id="CHECK-005",
-        title="Global run log exists",
-        severity="WARN",
-        passed=global_log.exists(),
-        details="Append-only diary of all runs must exist."
-    ))
+    findings.append(
+        Finding(
+            id="CHECK-005",
+            title="Global run log exists",
+            severity="WARN",
+            passed=global_log.exists(),
+            details="Append-only diary of all runs must exist.",
+        )
+    )
 
     return findings
+
 
 def write_findings(run_dir: Path, findings: List[Finding]) -> str:
     """Save compliance results and return PASS/WARN/FAIL status."""

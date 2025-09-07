@@ -94,6 +94,7 @@ def main():
         "warnings": [f.id for f in findings if f.severity == "WARN" and not f.passed],
     }
 
+    # ✅ Now write metadata with compliance included
     append_jsonl(paths["log"], record)
     write_json(run_dir / "metadata.json", record)
     upload_to_blob(run_id, "metadata.json", record)
