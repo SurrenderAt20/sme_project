@@ -46,6 +46,9 @@ def write_run_report(run_dir: Path, meta: Dict[str, Any]):
         f"- Algorithm: {meta.get('model', {}).get('algorithm')}",
         f"- Accuracy: {meta.get('model', {}).get('metrics', {}).get('value')}",
         f"- Saved at: {meta.get('model', {}).get('artifact_path')}",
+        "",
+        "## Compliance",
+        f"- Status: {meta.get('compliance', {}).get('status', '-')}",
     ]
     path = run_dir / "run_report.md"
     path.write_text("\n".join(lines), encoding="utf-8")

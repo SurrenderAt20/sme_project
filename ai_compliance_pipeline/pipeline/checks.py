@@ -62,7 +62,7 @@ def run_checks(meta: Dict[str, Any], run_dir: Path) -> List[Finding]:
             title="Model artifact saved",
             severity="WARN",
             passed=artifact_path and Path(artifact_path).exists(),
-            details="Trained model should be persisted for auditability.",
+            details="All artefacts (model, dataset card, model card, run report) must be saved for auditability and reproducibility.",
         )
     )
 
@@ -75,6 +75,19 @@ def run_checks(meta: Dict[str, Any], run_dir: Path) -> List[Finding]:
             severity="WARN",
             passed=global_log.exists(),
             details="Append-only diary of all runs must exist.",
+        )
+    )
+
+    # 6. Transformation metadata
+    transform = meta.get("transform")
+    rows_cleaned = transform.get("rows_after_clean") if transform else None
+    findings.append(
+        Finding(
+            id="CHECK-006",
+            title="Transformation metadata exists and data cleaned",
+            severity="WARN",
+            passed=transform is not None and isinstance(rows_cleaned, int) and rows_cleaned > 0,
+            details="Transformation step metadata (rows_after_clean, features, splits) must be present and data must be cleaned for reproducibility.",
         )
     )
 
