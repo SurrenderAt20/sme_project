@@ -4,7 +4,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 import joblib
 
-def train_logreg(X_train, y_train, max_iter: int = 1000) -> LogisticRegression:
+def train_logreg(X_train, y_train, max_iter: int = 200) -> LogisticRegression:
     m = LogisticRegression(max_iter=max_iter)
     m.fit(X_train, y_train)
     return m

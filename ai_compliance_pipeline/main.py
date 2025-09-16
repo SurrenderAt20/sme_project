@@ -81,6 +81,18 @@ def main():
 
     record = {**base, "transform": transform_meta, "model": model_meta}
 
+    # Generate & hash model card before compliance checks
+    dataset_card = write_dataset_card(run_dir, record)
+    model_card = write_model_card(run_dir, record)
+    from pipeline.compliance import sha256_of_file
+    model_card_path = Path(model_card)
+    model_card_hash = sha256_of_file(model_card_path)
+    record["model_card_hash"] = model_card_hash
+    run_report = write_run_report(run_dir, record)
+
+    # Write metadata.json before compliance checks
+    write_json(run_dir / "metadata.json", record)
+
     print("[bold cyan]Step 5: Compliance checks[/bold cyan]")
     findings = run_checks(record, run_dir)
     status = write_findings(run_dir, findings)
@@ -94,15 +106,12 @@ def main():
         "warnings": [f.id for f in findings if f.severity == "WARN" and not f.passed],
     }
 
-    # ✅ Now write metadata with compliance included
+    # write metadata with compliance
     append_jsonl(paths["log"], record)
     write_json(run_dir / "metadata.json", record)
     upload_to_blob(run_id, "metadata.json", record)
 
-    # Generate & upload reports
-    dataset_card = write_dataset_card(run_dir, record)
-    model_card = write_model_card(run_dir, record)
-    run_report = write_run_report(run_dir, record)
+    # Upload reports
     for card in [dataset_card, model_card, run_report]:
         upload_to_blob(run_id, Path(card).name, Path(card).read_text())
 

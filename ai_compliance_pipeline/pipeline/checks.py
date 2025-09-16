@@ -3,6 +3,8 @@ from dataclasses import dataclass, asdict
 from typing import Dict, Any, List
 from pathlib import Path
 import json
+from datetime import datetime
+import pytz
 
 
 @dataclass
@@ -91,6 +93,26 @@ def run_checks(meta: Dict[str, Any], run_dir: Path) -> List[Finding]:
         )
     )
 
+        # 7. Model card integrity
+    model_card_path = run_dir / "model_card.md"
+    expected_hash = meta.get("model_card_hash")
+    actual_hash = None
+    if model_card_path.exists():
+        try:
+            from pipeline.compliance import sha256_of_file
+            actual_hash = sha256_of_file(model_card_path)
+        except Exception:
+            actual_hash = None
+    findings.append(
+        Finding(
+            id="CHECK-007",
+            title="Model card integrity",
+            severity="BLOCKER",
+            passed=(expected_hash is not None and actual_hash == expected_hash),
+            details="Model card hash must match the value saved at creation. Tampering will trigger a FAIL verdict.",
+        )
+    )
+
     return findings
 
 
@@ -114,12 +136,35 @@ def write_findings(run_dir: Path, findings: List[Finding]) -> str:
     else:
         status = "PASS"
 
-    # Save summary
+    # Save improved summary with current timestamp and sorted findings
     summary_path = run_dir / "compliance_summary.txt"
+    # Try to get run_id from metadata.json if present
+    run_id = None
+    metadata_path = run_dir / "metadata.json"
+    if metadata_path.exists():
+        try:
+            import json as _json
+            with metadata_path.open("r", encoding="utf-8") as mf:
+                meta = _json.load(mf)
+            run_id = meta.get("run_id")
+        except Exception:
+            pass
+    # Use Copenhagen time for compliance check timestamp
+    tz = pytz.timezone('Europe/Copenhagen')
+    now = datetime.now(tz)
+    timestamp = now.strftime('%Y-%m-%d  %H:%M:%S %Z')
+    # Sort findings by check ID for consistent order
+    findings_sorted = sorted(findings, key=lambda f: f.id)
     with summary_path.open("w", encoding="utf-8") as f:
-        f.write(status + "\n")
-        for fi in findings:
-            if not fi.passed:
-                f.write(f"- {fi.id} [{fi.severity}]: {fi.title} — {fi.details}\n")
-
+        if run_id:
+            f.write(f"Compliance Summary for Run: {run_id}\n")
+        else:
+            f.write("Compliance Summary\n")
+        f.write(f"Timestamp: {timestamp}\n")
+        f.write(f"Overall Status: {status}\n\n")
+        f.write("Check Results:\n")
+        for fi in findings_sorted:
+            f.write(f"- {fi.id} [{fi.severity}]: {fi.title} — {'PASS' if fi.passed else 'FAIL'}\n")
+            if fi.details:
+                f.write(f"  Details: {fi.details}\n")
     return status
