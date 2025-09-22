@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Dict, Any
 from azure.storage.blob import BlobServiceClient, ContentSettings
 
-# Get connection string from environment variable (safer than hardcoding)
+
 AZURE_CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-AZURE_CONTAINER = "artifacts"  # make sure this container exists in your Storage Account
+AZURE_CONTAINER = "artifacts"
 
 # Initialize blob service
 blob_service = None
@@ -15,7 +15,7 @@ if AZURE_CONN_STR:
     try:
         blob_service.create_container(AZURE_CONTAINER)
     except Exception:
-        pass  # ignore if it already exists
+        pass  
 
 
 def upload_to_blob(run_id: str, filename: str, data: bytes | str | Dict[str, Any]):
@@ -29,7 +29,7 @@ def upload_to_blob(run_id: str, filename: str, data: bytes | str | Dict[str, Any
         blob=f"runs/{run_id}/{filename}"
     )
 
-    # Pick content type based on file extension
+    
     if filename.endswith(".json"):
         content_type = "application/json"
     elif filename.endswith(".txt"):
@@ -37,19 +37,19 @@ def upload_to_blob(run_id: str, filename: str, data: bytes | str | Dict[str, Any
     elif filename.endswith(".md"):
         content_type = "text/markdown"
     elif filename.endswith(".joblib"):
-        content_type = "application/octet-stream"  # binary
+        content_type = "application/octet-stream" 
     else:
         content_type = "application/octet-stream"
 
-    # Convert dict -> JSON string
+    
     if isinstance(data, dict):
         data = json.dumps(data, indent=2)
 
-    # Convert string -> bytes
+    
     if isinstance(data, str):
         data = data.encode("utf-8")
 
-    # Upload
+   
     blob_client.upload_blob(
         data,
         overwrite=True,

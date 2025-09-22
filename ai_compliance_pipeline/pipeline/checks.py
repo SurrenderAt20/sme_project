@@ -120,12 +120,10 @@ def write_findings(run_dir: Path, findings: List[Finding]) -> str:
     """Save compliance results and return PASS/WARN/FAIL status."""
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save detailed findings
     path = run_dir / "compliance_findings.json"
     with path.open("w", encoding="utf-8") as f:
         json.dump([asdict(finding) for finding in findings], f, indent=2)
 
-    # Determine overall status
     blockers = [f for f in findings if f.severity == "BLOCKER" and not f.passed]
     warns = [f for f in findings if f.severity == "WARN" and not f.passed]
 
@@ -136,9 +134,7 @@ def write_findings(run_dir: Path, findings: List[Finding]) -> str:
     else:
         status = "PASS"
 
-    # Save improved summary with current timestamp and sorted findings
     summary_path = run_dir / "compliance_summary.txt"
-    # Try to get run_id from metadata.json if present
     run_id = None
     metadata_path = run_dir / "metadata.json"
     if metadata_path.exists():
@@ -149,11 +145,9 @@ def write_findings(run_dir: Path, findings: List[Finding]) -> str:
             run_id = meta.get("run_id")
         except Exception:
             pass
-    # Use Copenhagen time for compliance check timestamp
     tz = pytz.timezone('Europe/Copenhagen')
     now = datetime.now(tz)
     timestamp = now.strftime('%Y-%m-%d  %H:%M:%S %Z')
-    # Sort findings by check ID for consistent order
     findings_sorted = sorted(findings, key=lambda f: f.id)
     with summary_path.open("w", encoding="utf-8") as f:
         if run_id:

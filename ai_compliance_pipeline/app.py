@@ -7,10 +7,10 @@ from azure.storage.blob import BlobServiceClient
 
 app = FastAPI(title="AI Compliance Pipeline Viewer")
 
-# Local fallback folder for runs
+
 base = Path(__file__).parent / "artifacts" / "runs"
 
-# Azure Blob setup
+
 AZURE_CONN_STR = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER = "artifacts"
 blob_service = None
@@ -121,6 +121,6 @@ async def run_detail(run_id: str):
         return html
 
 
-# Local static file serving if not using Blob
+
 if not blob_service:
     app.mount("/static", StaticFiles(directory=str(base)), name="static")

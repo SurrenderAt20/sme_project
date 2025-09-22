@@ -9,14 +9,14 @@ def get_latest_run_dir(runs_root):
     runs = [d for d in os.listdir(runs_root) if os.path.isdir(os.path.join(runs_root, d))]
     if not runs:
         raise FileNotFoundError("No runs found in artifacts/runs.")
-    # Sort by creation time (descending)
+    
     runs.sort(key=lambda d: os.path.getctime(os.path.join(runs_root, d)), reverse=True)
     return runs[0]
 
 def main():
     runs_root = os.path.join(os.path.dirname(__file__), "artifacts", "runs")
     run_id = None
-    # Accept --run_id argument
+    
     for i, arg in enumerate(sys.argv):
         if arg == "--run_id" and i + 1 < len(sys.argv):
             run_id = sys.argv[i + 1]
@@ -33,7 +33,7 @@ def main():
     findings = run_checks(metadata, Path(run_dir))
     write_findings(Path(run_dir), findings)
 
-    # Upload updated compliance artefacts to Azure Blob Storage
+    
     try:
         from pipeline.compliance import upload_to_blob
         compliance_findings_path = Path(run_dir) / "compliance_findings.json"
